@@ -1,0 +1,83 @@
+@import "./main.css";
+@import "./register/register-login.css";
+
+:root {
+  --button-width: 200px;
+  --main-color: #f1431d;
+  --secondary-color: #131e41;
+  --hover-transform: scale(1.1);
+  --hover-transition-duration: 0.3s;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.input-error {
+  border: 2px solid var(--main-color);
+}
+
+.error-message{
+  color: var(--main-color);
+}
+
+.button--orange {
+  width: var(--button-width);
+  height: 56px;
+  background-color: var(--main-color);
+  border: none;
+  border-radius: 40px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 27%;
+  letter-spacing: 0;
+  text-align: center;
+  color: #fff;
+}
+
+.button--orange:hover {
+  transform: var(--hover-transform);
+  transition-duration: var(--hover-transition-duration);
+}
+
+.button--white {
+  width: var(--button-width);
+  height: 56px;
+  background-color: #fff;
+  border: 2px solid var(--main-color);
+  border-radius: 40px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 27%;
+  letter-spacing: 0;
+  text-align: center;
+  color: var(--main-color);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.button--white:hover {
+  transform: var(--hover-transform);
+  transition-duration: var(--hover-transition-duration);
+}
+
+.app-name {
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: left;
+  color: var(--main-color);
+}

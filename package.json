@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "mongodb-memory-server": "^10.2.0",
+    "mongoose": "^8.17.1"
+  }
+}
