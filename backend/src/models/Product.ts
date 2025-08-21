@@ -1,5 +1,7 @@
 import mongoose, { Types, Schema } from "mongoose";
 import { IComponent, IProduct } from "../types/product";
+import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
+
 
 const componentSchema = new Schema<IComponent>(
   {
@@ -28,8 +30,7 @@ const componentSchema = new Schema<IComponent>(
 
 componentSchema.virtual("unitCostPerProduct").get(function (this: IComponent) {
   const costPerUnit = this.unitPriceCents / this.unitQtyPerPack;
-  const unitCostPerProduct = Math.ceil(costPerUnit * this.usageQtyPerProduct);
-  return unitCostPerProduct;
+  return Math.ceil(costPerUnit * this.usageQtyPerProduct);
 });
 
 const productSchema = new Schema<IProduct>(
@@ -62,21 +63,18 @@ const productSchema = new Schema<IProduct>(
 const calcMaterialsCostCents = (product: IProduct) => {
   return (product.components ?? []).reduce((sum, component: IComponent) => {
     const perProduct =
-      component.unitCostPerProduct ??
-      Math.ceil(
-        (component.unitPriceCents / component.unitQtyPerPack) *
-          component.usageQtyPerProduct
-      );
+    component.unitCostPerProduct ??
+    Math.ceil(
+      (component.unitPriceCents / component.unitQtyPerPack) *
+      component.usageQtyPerProduct
+    );
     return sum + perProduct;
   }, 0);
 };
 
 const calcLaborCostCents = (product: IProduct) => {
   const hour = product.laborMinutes / 60;
-  const laborCostCents = Math.round(
-    hour * product.laborRateCentsPerHour
-  );
-  return laborCostCents;
+  return Math.round(hour * product.laborRateCentsPerHour);
 };
 
 const calcTotalCostCents = (product: IProduct) => {
@@ -94,5 +92,8 @@ productSchema.virtual("laborCostCents").get(function (this: IProduct) {
 productSchema.virtual("totalCostCents").get(function (this: IProduct) {
   return calcTotalCostCents(this);
 });
+
+componentSchema.plugin(mongooseLeanVirtuals);
+productSchema.plugin(mongooseLeanVirtuals);
 
 export default mongoose.model<IProduct>("Product", productSchema);

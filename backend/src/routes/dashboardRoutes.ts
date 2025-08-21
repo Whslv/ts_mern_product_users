@@ -1,17 +1,17 @@
-import express from 'express';
-import { protect, AuthRequest } from '../middleware/Authentication';
-import Todo from '../models/Product'; // your todos collection
+import express from "express";
+import { protect, AuthRequest } from "../middleware/authentication";
+import Product from "../models/Product";
 
 const router = express.Router();
 
-router.get('/', protect, async (req: AuthRequest, res) => {
+router.get("/", protect, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
 
-  const todos = await Todo.find({ user: userId });
+  const product = await Product.find({ product: userId });
 
   res.json({
     message: `Welcome to dashboard of user ${userId}`,
-    todos,
+    product,
   });
 });
 

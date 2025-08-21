@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, AuthRequest } from '../middleware/Authentication';
+import { protect, AuthRequest } from '../middleware/authentication';
 import User from '../models/User';
 
 const router = express.Router();

@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "mongodb-memory-server": "^10.2.0",
-    "mongoose": "^8.17.1"
+    "mongoose": "^8.17.1",
+    "mongoose-lean-virtuals": "^2.0.0"
   }
 }
