@@ -1,10 +1,17 @@
 @import "./main.css";
 @import "./register/register-login.css";
+@import "./dashboard/navbar.css";
+@import "./dashboard/product.css";
+
+@import url('https://fonts.googleapis.com/css2?family=TASA+Explorer:wght@400..800&display=swap');
 
 :root {
   --button-width: 200px;
   --main-color: #f1431d;
   --secondary-color: #131e41;
+  --secondary-color-dull: #8e919a;
+  --background-color: #f5f6f8;
+  --input-border-color: #d2d5d8;
   --hover-transform: scale(1.1);
   --hover-transition-duration: 0.3s;
 }
@@ -16,11 +23,15 @@
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
+.body {
+  background: var(--background-color);
+}
+
 .input-error {
   border: 2px solid var(--main-color);
 }
 
-.error-message{
+.error-message {
   color: var(--main-color);
 }
 
@@ -72,6 +83,28 @@
   transition-duration: var(--hover-transition-duration);
 }
 
+.button--navy {
+  width: var(--button-width);
+  height: 56px;
+  background-color: var(--secondary-color);
+  border: none;
+  border-radius: 40px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 27%;
+  letter-spacing: 0;
+  text-align: center;
+  color: #fff;
+}
+
+.button--navy:hover {
+  transform: var(--hover-transform);
+  transition-duration: var(--hover-transition-duration);
+}
+
 .app-name {
   text-decoration: none;
   text-transform: uppercase;
@@ -80,4 +113,17 @@
   letter-spacing: 0;
   text-align: left;
   color: var(--main-color);
+}
+
+.container {
+  max-width: 456px;
+  margin-inline: auto;
+}
+
+.icon {
+  display: block;
+  background-size: cover;
+  background-repeat: no-repeat;
+  height: 24px;
+  width: 24px;
 }

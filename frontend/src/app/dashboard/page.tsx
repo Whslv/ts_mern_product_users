@@ -1,312 +1,454 @@
 "use client";
-
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  getDashboard,
-  getListOfProducts,
-  createProduct,
-} from "../../../lib/api";
-import router, { Router, useRouter } from "next/router";
+import { InputField } from "../components/InputField";
+import { Navbar } from "../components/Navbar";
 
-// --- Types that match your backend DTOs (all money in cents) ---
-type ComponentDto = {
+const clamp2dp = (v: string) => {
+  const cleaned = v.replace(/[^\d.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length > 2) return parts[0] + "." + parts.slice(1).join("");
+  if (parts[1]?.length > 2) parts[1] = parts[1].slice(0, 2);
+  return parts.join(".");
+};
+const dollarsToCents = (v: string | number) => {
+  const s = String(v)
+    .trim()
+    .replace(/[$,\s]/g, "");
+  if (!/^(?:\d+|\d*\.\d{1,2})$/.test(s)) return 0;
+  return Math.round(parseFloat(s) * 100);
+};
+const centsToDollars = (c: number) => (c / 100).toFixed(2);
+
+interface Component {
   title: string;
-  vendorUrl?: string;
+  vendorUrl: string;
   unitName: string;
-  unitQtyPerPack: number; // e.g. 100 pcs per pack
-  unitPriceCents: number; // e.g. 1299 = $12.99
-  usageQtyPerProduct: number; // e.g. 12 pcs per product
-};
+  unitQtyPerPack: number;
+  unitPrice: string;
+  usageQtyPerProduct: number;
+}
 
-type ProductDto = {
+interface Product {
   title: string;
-  laborMinutes: number; // e.g. 90
-  laborRateCentsPerHour: number; // e.g. 4000 = $40.00/h
-  components: ComponentDto[];
-};
+  laborMinutes: number;
+  laborRatePerHour: number;
+  sellingPrice: number;
+  components: Component[];
+}
 
-// --- helpers ---
-const emptyComponent = (): ComponentDto => ({
-  title: "",
-  vendorUrl: "",
-  unitName: "",
-  unitQtyPerPack: 1,
-  unitPriceCents: 0,
-  usageQtyPerProduct: 1,
-});
-
-const ceilCents = (x: number) => Math.ceil(x); // keep integer cents
-
-export default function DashboardPage() {
-  // form state (all cents are numbers)
+const CreateProduct: React.FC = () => {
   const [title, setTitle] = useState("");
-  const [laborMinutes, setLaborMinutes] = useState<number>(60);
-  const [laborRateCentsPerHour, setLaborRateCentsPerHour] =
-    useState<number>(4000);
-  const [components, setComponents] = useState<ComponentDto[]>([
-    emptyComponent(),
-  ]);
+  const [laborMinutes, setLaborMinutes] = useState("");
+  const [laborRate, setLaborRate] = useState("");
+  const [sellingPrice, setSellingPrice] = useState("");
+  const [components, setComponents] = useState<Component[]>([]);
+  const [loader, setLoader] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // listing state
-  const [products, setProducts] = useState<any[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const totals = useMemo(() => {
+    const compCents = components.reduce((sum, component) => {
+      const packPriceCents = dollarsToCents(component.unitPrice);
+      const pricePerUnit =
+        packPriceCents / Math.max(0, component.unitQtyPerPack);
+      const pricePerProduct = Math.ceil(
+        pricePerUnit * Math.max(0, component.usageQtyPerProduct)
+      );
+      return sum + pricePerProduct;
+    }, 0);
 
-  const load = async () => {
-    setLoading(true);
+    const laborRateCents = dollarsToCents(laborRate);
+    const minutes = Math.max(0, parseInt(laborMinutes || "0", 10));
+    const laborCents = Math.round(laborRateCents * (minutes / 60));
+    const totalCost = compCents + laborCents;
+    const sellCents = dollarsToCents(sellingPrice);
+    const profitCents = sellCents - totalCost;
+    const profitMarginPct = totalCost > 0 ? (profitCents / totalCost) * 100 : 0;
+
+    return {
+      componentsCost: compCents,
+      laborCost: laborCents,
+      total: totalCost,
+      profitAmount: profitCents,
+      profitPct: profitMarginPct,
+    };
+  }, [components, laborRate, laborMinutes, sellingPrice]);
+
+  const addComponent = () => {
+    setComponents((prev) => [
+      ...prev,
+      {
+        title: `New component #${prev.length + 1}`,
+        vendorUrl: "",
+        unitName: "",
+        unitQtyPerPack: 10,
+        unitPrice: "",
+        usageQtyPerProduct: 1.5,
+      },
+    ]);
+  };
+
+  const updateComponent = <K extends keyof Component>(
+    index: number,
+    key: K,
+    value: Component[K]
+  ) => {
+    setComponents((prev) =>
+      prev.map((component, i) =>
+        i === index ? { ...component, [key]: value } : component
+      )
+    );
+  };
+
+  const removeComponent = (index: number) => {
+    setComponents((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const saceProduct = async () => {
+    if (!title.trim()) return;
+
+    const payload = {
+      title: title.trim(),
+      laborMinutes: Math.max(0, parseInt(laborMinutes || "0", 10)),
+      laborRatePerHour: clamp2dp(laborRate || "0"),
+      sellingPrice: clamp2dp(sellingPrice || "0"),
+      components: components.map((component) => ({
+        title: component.title.trim(),
+        vendorUrl: component.vendorUrl?.trim() || undefined,
+        unitName: component.unitName.trim(),
+        unitQtyPerPack: Number(component.unitQtyPerPack) || 1,
+        unitPrice: clamp2dp(component.unitPrice || "0"),
+        usageQtyPerProduct: Number(component.usageQtyPerProduct) || 0,
+      })),
+    };
+
     try {
-      const authorized = await getDashboard(); // optional; ensures auth/session
-      const list = await getListOfProducts({ page: 1, limit: 10 });
-      setProducts(list.data.items || []);
-      setTotalCount(list.data.total || 0);
+      setSaving(true);
+      const res = await fetch("/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to create product");
+      setTitle("");
+      setLaborMinutes("");
+      setLaborRate("");
+      setSellingPrice("");
+      setComponents([]);
+    } catch (error) {
+      console.error(error);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  // live calculations (all in cents)
-  const { perComponentCents, materialsCents, laborCents, totalCents } =
-    useMemo(() => {
-      const perComp = components.map((c) => {
-        const perUnitCents = c.unitPriceCents / (c.unitQtyPerPack || 1); // may be fractional
-        const perProduct = ceilCents(
-          perUnitCents * (c.usageQtyPerProduct || 0)
-        );
-        return Number.isFinite(perProduct) ? perProduct : 0;
-      });
-
-      const materials = perComp.reduce((s, v) => s + v, 0);
-      const labor = Math.round(laborRateCentsPerHour * (laborMinutes / 60));
-      const total = materials + labor;
-
-      return {
-        perComponentCents: perComp,
-        materialsCents: materials,
-        laborCents: labor,
-        totalCents: total,
-      };
-    }, [components, laborMinutes, laborRateCentsPerHour]);
-
-  // dynamic component handlers
-  const addComponent = () =>
-    setComponents((prev) => [...prev, emptyComponent()]);
-  const removeComponent = (idx: number) =>
-    setComponents((prev) => prev.filter((_, i) => i !== idx));
-  const updateComp = <K extends keyof ComponentDto>(
-    i: number,
-    k: K,
-    v: ComponentDto[K]
-  ) => {
-    setComponents((prev) => {
-      const copy = [...prev];
-      copy[i] = { ...copy[i], [k]: v };
-      return copy;
-    });
-  };
-
-  // submit: already in cents, so send as-is
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const cleanComponents = components
-      .map((c) => ({
-        title: c.title.trim(),
-        vendorUrl: c.vendorUrl?.trim() || undefined,
-        unitName: c.unitName.trim(),
-        unitQtyPerPack: Number(c.unitQtyPerPack) || 1,
-        unitPriceCents: Math.max(0, Math.round(Number(c.unitPriceCents) || 0)),
-        usageQtyPerProduct: Number(c.usageQtyPerProduct) || 0,
-      }))
-      .filter((c) => c.title && c.unitName);
-
-    const payload: ProductDto = {
-      title: title.trim(),
-      laborMinutes: Math.max(0, Math.round(Number(laborMinutes) || 0)),
-      laborRateCentsPerHour: Math.max(
-        0,
-        Math.round(Number(laborRateCentsPerHour) || 0)
-      ),
-      components: cleanComponents,
-    };
-
-    await createProduct(payload);
-    // reset form
-    setTitle("");
-    setLaborMinutes(60);
-    setLaborRateCentsPerHour(4000);
-    setComponents([emptyComponent()]);
-    await load();
-  };
-
-  if (loading) return <div style={{ padding: 24 }}>Loading…</div>;
-
   return (
-    <div style={{ padding: 24, display: "grid", gap: 24 }}>
-      <h1>Create product (all prices in cents)</h1>
+    <div className="container">
+      <Navbar />
 
-      <form onSubmit={handleCreate} style={{ display: "grid", gap: 12 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 1fr 1fr",
-            gap: 12,
-          }}
-        >
-          <input
-            placeholder="Product title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
+      <div className="product">
+        <h2 className="product_title">Create new product</h2>
+        <div className="product_container">
+          <header className="product_header">
+            <div className="product_header--content">
+              <h3 className="product_header--title">{title || "My product"}</h3>
+              <span className="product_header--subtitle">{`Total components: ${components.length}`}</span>
+            </div>
 
-          <input
-            type="number"
-            min={0}
-            step={1}
-            placeholder="Labor minutes"
-            value={laborMinutes}
-            onChange={(e) => setLaborMinutes(Number(e.target.value))}
-            required
-          />
+            <div className="product_input">
+              <h3 className="product_input--name input__name">Name</h3>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Product name"
+                className="product_input--field input__field"
+              />
+              <button className="fold-unfold-button"></button>
+            </div>
+          </header>
 
-          {/* cents, integer */}
-          <input
-            type="number"
-            min={0}
-            step={1}
-            placeholder="Labor rate (cents/hour)"
-            value={laborRateCentsPerHour}
-            onChange={(e) =>
-              setLaborRateCentsPerHour(
-                Math.max(0, Math.round(Number(e.target.value) || 0))
-              )
-            }
-            required
-          />
-        </div>
-
-        <h3>Components</h3>
-        <div style={{ display: "grid", gap: 8 }}>
-          {components.map((c, i) => (
-            <div
-              key={i}
-              style={{
-                display: "grid",
-                gap: 8,
-                gridTemplateColumns: "1.2fr 1.2fr 0.7fr 0.7fr 1fr 1fr auto",
-                alignItems: "center",
-              }}
-            >
-              <input
-                placeholder="Title"
-                value={c.title}
-                onChange={(e) => updateComp(i, "title", e.target.value)}
-                required
-              />
-              <input
-                placeholder="Vendor URL (optional)"
-                value={c.vendorUrl ?? ""}
-                onChange={(e) => updateComp(i, "vendorUrl", e.target.value)}
-              />
-              <input
-                placeholder="Unit name (e.g. pcs, ml)"
-                value={c.unitName}
-                onChange={(e) => updateComp(i, "unitName", e.target.value)}
-                required
-              />
-              <input
-                type="number"
-                min={0.0001}
-                step={0.0001}
-                placeholder="Qty per pack"
-                value={c.unitQtyPerPack}
-                onChange={(e) =>
-                  updateComp(i, "unitQtyPerPack", Number(e.target.value))
-                }
-                required
-              />
-              {/* cents, integer */}
-              <input
-                type="number"
-                min={0}
-                step={1}
-                placeholder="Pack price (cents)"
-                value={c.unitPriceCents}
-                onChange={(e) =>
-                  updateComp(
-                    i,
-                    "unitPriceCents",
-                    Math.max(0, Math.round(Number(e.target.value) || 0))
-                  )
-                }
-                required
-              />
-              <input
-                type="number"
-                min={0.0001}
-                step={0.0001}
-                placeholder="Usage per product"
-                value={c.usageQtyPerProduct}
-                onChange={(e) =>
-                  updateComp(i, "usageQtyPerProduct", Number(e.target.value))
-                }
-                required
-              />
-
-              <button
-                type="button"
-                onClick={() => removeComponent(i)}
-                aria-label="Remove"
-              >
-                ✕
-              </button>
-
-              {/* per-component cost in cents */}
-              <div style={{ gridColumn: "1 / -1", fontSize: 12, opacity: 0.8 }}>
-                Cost per product (cents):{" "}
-                {(() => {
-                  const perUnit = c.unitPriceCents / (c.unitQtyPerPack || 1);
-                  const perProduct = ceilCents(
-                    perUnit * (c.usageQtyPerProduct || 0)
-                  );
-                  return Number.isFinite(perProduct) ? perProduct : 0;
-                })()}
+          <section className="product_body">
+            <div className="product_card">
+              <div className="card_input">
+                <InputField
+                  label="Labor time (minutes)"
+                  value={laborMinutes}
+                  type="number"
+                  onChange={(value) => setLaborMinutes(value)}
+                  placeholder="480"
+                  hint="Enter the amount of time required to craft or maintain this product until it is ready to be sent to the client."
+                />
+                <InputField
+                  label="Labor cost"
+                  value={laborRate}
+                  onChange={(value) => setLaborRate(clamp2dp(value))}
+                  placeholder="25.15"
+                  hint="Enter the labor cost required to produce or maintain this product."
+                />
+                <InputField
+                  label="Selling price"
+                  value={sellingPrice}
+                  onChange={(value) => setSellingPrice(clamp2dp(value))}
+                  placeholder="199.99"
+                  hint="Enter the selling price you will charge the client for this product."
+                />
               </div>
+              <div className="card_bottom">
+                <div className="card_calcualtions">
+                  <div className="total">
+                    <div className="total-content">
+                      <div className="total-text">Components cost:</div>
+                      <div className="total-number">
+                        ${centsToDollars(totals.componentsCost)}
+                      </div>
+                    </div>
+                    <div className="total-content">
+                      <div className="total-text">Labor cost:</div>
+                      <div className="total-number">
+                        ${centsToDollars(totals.laborCost)}
+                      </div>
+                    </div>
+                    <div className="total-content">
+                      <div className="total-text">Total amount:</div>
+                      <div className="total-number">
+                        ${centsToDollars(totals.total)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="profit">
+                    <div className="profit-content">
+                      <div className="profit-text">Profit margin:</div>
+                      <div className="profit-number">
+                        {totals.profitPct.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="profit-content">
+                      <div className="profit-text">Profit amount:</div>
+                      <div className="profit-number">
+                        ${centsToDollars(totals.profitAmount)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="card_buttons">
+                  <button
+                    className="card_button--orange"
+                    onClick={saceProduct}
+                    disabled={saving || !title.trim()}
+                  >
+                    {saving ? "SAVING..." : "SAVE PRODUCT"}
+                  </button>
+                  <button className="card_button--navy" onClick={addComponent}>
+                    ADD COMPONENT #{components.length + 1}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Components preview list */}
+      <div className="component">
+        <h2 className="product_title component_title">Components</h2>
+        <div className="">
+          {components.map((c, idx) => (
+            <div key={idx} className="product_container component_container">
+              <header className="product_header component_header">
+                <div className="product_header--content component_header--content">
+                  <h3 className="product_header--title component_header--title">
+                    {c.title}
+                  </h3>
+                  <span className="product_header--subtitle component_content--subtitle">{`Total components: ${components.length}`}</span>
+                </div>
+
+                <div className="product_input component_input">
+                  <h3 className="product_input--name component_input--name input__name">
+                    Name
+                  </h3>
+                  <input
+                    className="product_input--field component_input--field input__field"
+                    value={c.title}
+                    onChange={(e) =>
+                      updateComponent(idx, "title", e.target.value)
+                    }
+                    placeholder={`Component name`}
+                  />
+                </div>
+              </header>
+
+              <section className="product_body component_body">
+                <div className="product_card component_card">
+                  <div className="card_input">
+                    <div className="card_input_body">
+                      <div>
+                        <label className="card_input_body--lable input__name">
+                          Vendor URL(optional)
+                        </label>
+                        <input
+                          className="product_input--field component_input--field input__field"
+                          value={c.vendorUrl || ""}
+                          onChange={(e) =>
+                            updateComponent(idx, "vendorUrl", e.target.value)
+                          }
+                          placeholder="www.amazon.com"
+                        />
+                      </div>
+                      <button className="card_input_body--info-icon"></button>
+                      <div className="card_input_body--info">
+                        <p className="card_input_body--info-description">
+                          Enter the link to the supplier`s product page.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="card_input_body">
+                      <div>
+                        <label className="card_input_body--lable input__name">
+                          Unit name (e.g. pcs, ml)
+                        </label>
+                        <input
+                          className="product_input--field component_input--field input__field"
+                          value={c.unitName}
+                          onChange={(e) =>
+                            updateComponent(idx, "unitName", e.target.value)
+                          }
+                          placeholder="pcs"
+                        />
+                      </div>
+                      <button className="card_input_body--info-icon"></button>
+                      <div className="card_input_body--info">
+                        <p className="card_input_body--info-description">
+                          Specify the unit type (e.g., pcs, ml, kg).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="card_input_body">
+                      <div>
+                        <label className="card_input_body--lable input__name">
+                          Quntity in one unit
+                        </label>
+                        <input
+                          type="number"
+                          className="product_input--field component_input--field input__field"
+                          value={c.unitQtyPerPack}
+                          onChange={(e) =>
+                            updateComponent(
+                              idx,
+                              "unitQtyPerPack",
+                              Math.max(1, Number(e.target.value) || 1)
+                            )
+                          }
+                          placeholder="Units per pack"
+                        />
+                      </div>
+                      <button className="card_input_body--info-icon"></button>
+                      <div className="card_input_body--info">
+                        <p className="card_input_body--info-description">
+                          Enter how many items are in one unit (e.g., 1 box = 12
+                          pcs).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="card_input_body">
+                      <div>
+                        <label className="card_input_body--lable input__name">
+                          Cost
+                        </label>
+                        <input
+                          type="number"
+                          className="product_input--field component_input--field input__field"
+                          value={c.unitPrice}
+                          onChange={(e) =>
+                            updateComponent(
+                              idx,
+                              "unitPrice",
+                              clamp2dp(e.target.value)
+                            )
+                          }
+                          placeholder="19.99"
+                        />
+                      </div>
+                      <button className="card_input_body--info-icon"></button>
+                      <div className="card_input_body--info">
+                        <p className="card_input_body--info-description">
+                          Enter how much cost this component.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="card_input_body">
+                      <div>
+                        <label className="card_input_body--lable input__name">
+                          Quntity neede per product
+                        </label>
+                        <input
+                          type="number"
+                          className="product_input--field component_input--field input__field"
+                          value={c.usageQtyPerProduct}
+                          onChange={(e) =>
+                            updateComponent(
+                              idx,
+                              "usageQtyPerProduct",
+                              Math.max(0, Number(e.target.value) || 0)
+                            )
+                          }
+                          placeholder="1.5"
+                        />
+                      </div>
+                      <button className="card_input_body--info-icon"></button>
+                      <div className="card_input_body--info">
+                        <p className="card_input_body--info-description">
+                          Enter how much cost this component.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="card_bottom">
+                    <div className="card_calcualtions">
+                      <div className="profit-content">
+                        <div className="profit-text">Cost per product:</div>
+                        <div className="profit-number">
+                          $
+                          {(() => {
+                            const packCents = dollarsToCents(c.unitPrice);
+                            const perUnit =
+                              packCents / Math.max(1, c.unitQtyPerPack);
+                            const perProduct = Math.ceil(
+                              perUnit * Math.max(0, c.usageQtyPerProduct)
+                            );
+                            return centsToDollars(perProduct);
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="card_buttons">
+                      <button
+                        className="card_button--white"
+                        onClick={() => removeComponent(idx)}
+                      >
+                        Remove
+                      </button>
+
+                      <button
+                        className="card_button--navy"
+                        onClick={addComponent}
+                      >
+                        ADD COMPONENT #{components.length + 1}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           ))}
         </div>
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={addComponent}>
-            + Add component
-          </button>
-          <button type="submit">Create product</button>
-        </div>
-      </form>
-
-      {/* Live totals (cents) */}
-      <section style={{ marginTop: 16 }}>
-        <strong>Materials:</strong> {materialsCents}¢ &nbsp;|&nbsp;
-        <strong>Labor:</strong> {laborCents}¢ &nbsp;|&nbsp;
-        <strong>Total:</strong> {totalCents}¢
-      </section>
-
-      <section>
-        <h2>Products ({totalCount})</h2>
-        <ul>
-          {products.map((p) => (
-            <li key={p._id || p.id}>
-              <strong>{p.title}</strong>
-              {" • "}materials {p.materialsCostCents ?? 0}¢{" • "}labor{" "}
-              {p.laborCostCents ?? 0}¢{" • "}total {p.totalCostCents ?? 0}¢
-            </li>
-          ))}
-        </ul>
-      </section>
+      </div>
     </div>
   );
-}
+};
+
+export default CreateProduct;

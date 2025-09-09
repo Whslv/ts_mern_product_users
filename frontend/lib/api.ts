@@ -1,5 +1,5 @@
 import axios from "axios";
-import { ProductDto } from "./types/product.dto";
+import { ProductInputDto } from "./types/product.dto";
 
 const API = axios.create({
   baseURL: "http://localhost:5000/api",
@@ -21,7 +21,7 @@ export const getListOfProducts = (params?: {
   query?: string;
 }) => API.get("/products", { params });
 
-export const createProduct = (payload: ProductDto) => {
+export const createProduct = (payload: ProductInputDto) => {
   API.post("/products", payload);
 };
 export const getProduct = (id: string) => {
@@ -29,7 +29,7 @@ export const getProduct = (id: string) => {
 };
 export const updateProduct = (
   id: string,
-  payload: Partial<ProductDto>
+  payload: Partial<ProductInputDto>
 ) => {
   API.patch(`/products/${id}`, payload);
 };

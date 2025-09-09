@@ -12,7 +12,7 @@ export default function Home() {
   };
 
   return (
-    <div className="header">
+    <header className="header">
       <div className="header__container">
         <div className="header__content">
           <h1 className="header__title">Welcome!</h1>
@@ -30,6 +30,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
