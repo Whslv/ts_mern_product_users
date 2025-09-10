@@ -1,47 +1,22 @@
 "use client";
+
 import React, { useEffect, useMemo, useState } from "react";
-import { InputField } from "../components/InputField";
 import { Navbar } from "../components/Navbar";
+import { createProduct } from "@/lib/api";
+import { centsToDollars } from "@/lib/util/centsToDollars";
+import { dollarsToCents } from "@/lib/util/dollarsToCents";
+import { ProductCard } from "../components/ProductCard";
+import { clamp2dp } from "@/lib/util/toDecimals";
+import { Component } from "@/lib/types/component";
 
-const clamp2dp = (v: string) => {
-  const cleaned = v.replace(/[^\d.]/g, "");
-  const parts = cleaned.split(".");
-  if (parts.length > 2) return parts[0] + "." + parts.slice(1).join("");
-  if (parts[1]?.length > 2) parts[1] = parts[1].slice(0, 2);
-  return parts.join(".");
-};
-const dollarsToCents = (v: string | number) => {
-  const s = String(v)
-    .trim()
-    .replace(/[$,\s]/g, "");
-  if (!/^(?:\d+|\d*\.\d{1,2})$/.test(s)) return 0;
-  return Math.round(parseFloat(s) * 100);
-};
-const centsToDollars = (c: number) => (c / 100).toFixed(2);
 
-interface Component {
-  title: string;
-  vendorUrl: string;
-  unitName: string;
-  unitQtyPerPack: number;
-  unitPrice: string;
-  usageQtyPerProduct: number;
-}
-
-interface Product {
-  title: string;
-  laborMinutes: number;
-  laborRatePerHour: number;
-  sellingPrice: number;
-  components: Component[];
-}
-
-const CreateProduct: React.FC = () => {
+export default function AddPage() {
   const [title, setTitle] = useState("");
   const [laborMinutes, setLaborMinutes] = useState("");
   const [laborRate, setLaborRate] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [components, setComponents] = useState<Component[]>([]);
+  const [error, setError] = useState("");
   const [loader, setLoader] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -77,7 +52,7 @@ const CreateProduct: React.FC = () => {
     setComponents((prev) => [
       ...prev,
       {
-        title: `New component #${prev.length + 1}`,
+        title: "",
         vendorUrl: "",
         unitName: "",
         unitQtyPerPack: 10,
@@ -103,14 +78,39 @@ const CreateProduct: React.FC = () => {
     setComponents((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const saceProduct = async () => {
-    if (!title.trim()) return;
+  const fieldValidator = () => {
+    if (
+      title.trim() &&
+      laborMinutes.trim() &&
+      laborRate.trim() &&
+      sellingPrice.trim()
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  function errorHandler(err: string) {
+    setError(err);
+    setTimeout(() => {
+      setError("");
+    }, 3000);
+  }
+
+  const saveProduct = async () => {
+    setError("");
+
+    if (!fieldValidator()) {
+      errorHandler("Fields should have content");
+      return;
+    }
 
     const payload = {
       title: title.trim(),
-      laborMinutes: Math.max(0, parseInt(laborMinutes || "0", 10)),
-      laborRatePerHour: clamp2dp(laborRate || "0"),
-      sellingPrice: clamp2dp(sellingPrice || "0"),
+      laborMinutes: Math.max(0, parseInt(laborMinutes, 10)),
+      laborRatePerHour: clamp2dp(laborRate),
+      sellingPrice: clamp2dp(sellingPrice),
       components: components.map((component) => ({
         title: component.title.trim(),
         vendorUrl: component.vendorUrl?.trim() || undefined,
@@ -123,22 +123,16 @@ const CreateProduct: React.FC = () => {
 
     try {
       setSaving(true);
-      const res = await fetch("/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) throw new Error("Failed to create product");
+      createProduct(payload);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setError("");
       setTitle("");
       setLaborMinutes("");
       setLaborRate("");
       setSellingPrice("");
       setComponents([]);
-    } catch (error) {
-      console.error(error);
-    } finally {
       setSaving(false);
     }
   };
@@ -148,7 +142,7 @@ const CreateProduct: React.FC = () => {
       <Navbar />
 
       <div className="product">
-        <h2 className="product_title">Create new product</h2>
+        <h2 className="product_title title_h2">Create new product</h2>
         <div className="product_container">
           <header className="product_header">
             <div className="product_header--content">
@@ -162,92 +156,35 @@ const CreateProduct: React.FC = () => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Product name"
-                className="product_input--field input__field"
+                className={`product_input--field input__field ${error && "input__danger"}`}
               />
               <button className="fold-unfold-button"></button>
             </div>
           </header>
 
-          <section className="product_body">
-            <div className="product_card">
-              <div className="card_input">
-                <InputField
-                  label="Labor time (minutes)"
-                  value={laborMinutes}
-                  type="number"
-                  onChange={(value) => setLaborMinutes(value)}
-                  placeholder="480"
-                  hint="Enter the amount of time required to craft or maintain this product until it is ready to be sent to the client."
-                />
-                <InputField
-                  label="Labor cost"
-                  value={laborRate}
-                  onChange={(value) => setLaborRate(clamp2dp(value))}
-                  placeholder="25.15"
-                  hint="Enter the labor cost required to produce or maintain this product."
-                />
-                <InputField
-                  label="Selling price"
-                  value={sellingPrice}
-                  onChange={(value) => setSellingPrice(clamp2dp(value))}
-                  placeholder="199.99"
-                  hint="Enter the selling price you will charge the client for this product."
-                />
-              </div>
-              <div className="card_bottom">
-                <div className="card_calcualtions">
-                  <div className="total">
-                    <div className="total-content">
-                      <div className="total-text">Components cost:</div>
-                      <div className="total-number">
-                        ${centsToDollars(totals.componentsCost)}
-                      </div>
-                    </div>
-                    <div className="total-content">
-                      <div className="total-text">Labor cost:</div>
-                      <div className="total-number">
-                        ${centsToDollars(totals.laborCost)}
-                      </div>
-                    </div>
-                    <div className="total-content">
-                      <div className="total-text">Total amount:</div>
-                      <div className="total-number">
-                        ${centsToDollars(totals.total)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="profit">
-                    <div className="profit-content">
-                      <div className="profit-text">Profit margin:</div>
-                      <div className="profit-number">
-                        {totals.profitPct.toFixed(1)}%
-                      </div>
-                    </div>
-                    <div className="profit-content">
-                      <div className="profit-text">Profit amount:</div>
-                      <div className="profit-number">
-                        ${centsToDollars(totals.profitAmount)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="card_buttons">
-                  <button
-                    className="card_button--orange"
-                    onClick={saceProduct}
-                    disabled={saving || !title.trim()}
-                  >
-                    {saving ? "SAVING..." : "SAVE PRODUCT"}
-                  </button>
-                  <button className="card_button--navy" onClick={addComponent}>
-                    ADD COMPONENT #{components.length + 1}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
+          <ProductCard
+            error={error}
+            laborMinutes={laborMinutes}
+            setLaborMinutes={setLaborMinutes}
+            laborRate={laborRate}
+            setLaborRate={setLaborRate}
+            sellingPrice={sellingPrice}
+            setSellingPrice={setSellingPrice}
+            saveProduct={saveProduct}
+            saving={saving}
+            totals={totals}
+            addComponent={addComponent}
+            components={components}
+          />
+
         </div>
       </div>
+
+      {error && (
+        <div className="error-block">
+          <div className="error-message">{error}</div>
+        </div>
+      )}
 
       {/* Components preview list */}
       <div className="component">
@@ -331,7 +268,6 @@ const CreateProduct: React.FC = () => {
                           Quntity in one unit
                         </label>
                         <input
-                          type="number"
                           className="product_input--field component_input--field input__field"
                           value={c.unitQtyPerPack}
                           onChange={(e) =>
@@ -359,7 +295,6 @@ const CreateProduct: React.FC = () => {
                           Cost
                         </label>
                         <input
-                          type="number"
                           className="product_input--field component_input--field input__field"
                           value={c.unitPrice}
                           onChange={(e) =>
@@ -386,7 +321,6 @@ const CreateProduct: React.FC = () => {
                           Quntity neede per product
                         </label>
                         <input
-                          type="number"
                           className="product_input--field component_input--field input__field"
                           value={c.usageQtyPerProduct}
                           onChange={(e) =>
@@ -449,6 +383,4 @@ const CreateProduct: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default CreateProduct;
+}

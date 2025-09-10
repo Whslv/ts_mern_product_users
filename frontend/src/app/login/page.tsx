@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { getDashboard, login } from "../../../lib/api";
+import { getDashboard, login } from "../../lib/api";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {

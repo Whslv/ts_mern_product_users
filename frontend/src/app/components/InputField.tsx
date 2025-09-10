@@ -1,4 +1,5 @@
 type Props = {
+  error: string;
   label: string;
   value: string | number;
   onChange?: (value: string) => void;
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export const InputField: React.FC<Props> = ({
+  error,
   label,
   value,
   onChange,
@@ -24,7 +26,7 @@ export const InputField: React.FC<Props> = ({
           value={value as any}
           placeholder={placeholder}
           onChange={(e) => onChange?.(e.target.value)}
-          className="card_input_body--input input__field"
+          className={`card_input_body--input input__field ${error && 'input__danger' }`}
         />
       </div>
       <button className="card_input_body--info-icon"></button>

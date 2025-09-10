@@ -1,0 +1,263 @@
+.product_container {
+  background: #fff;
+  color: var(--secondary-color);
+
+  box-sizing: border-box;
+  border: 2px solid var(--input-border-color);
+  border-radius: 12px;
+  margin-top: 12px;
+}
+
+.product_title {
+  padding-top: 12px;
+}
+
+.product_header {
+  position: relative;
+  padding: 12px;
+
+  box-sizing: border-box;
+  border: 2px solid var(--input-border-color);
+  border-radius: 12px;
+}
+
+.product_header--content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.product_header--title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.product_header--subtitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--secondary-color-dull);
+}
+
+.product_input {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.input__name {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--main-color);
+}
+
+.fold-unfold-button {
+  position: absolute;
+  padding: 0 6px;
+  left: 50%;
+  bottom: -5%;
+
+  border: none;
+  background: none;
+
+  width: 12px;
+  height: 12px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-image: url(/bottom.png);
+
+  transform: translateX(-50%) rotate(0);
+}
+.fold-unfold-button:active {
+  transform: translateX(-50%) rotate(180deg);
+  transition: transform 0.2s ease-in-out;
+}
+
+.card_input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.card_input_body {
+  position: relative;
+  display: grid;
+  column-gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.card_input_body--info-icon {
+  position: absolute;
+  border: none;
+  background: none;
+
+  padding: 0 6px;
+  left: 50%;
+  top: 0;
+
+  width: 12px;
+  height: 12px;
+  opacity: 20%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-image: url(/info.png);
+}
+
+.card_input_body--info {
+  height: 100%;
+  padding: 6px;
+
+  border: none;
+  border-radius: 6px;
+  background: var(--background-color);
+
+  align-self: end;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--secondary-color-dull);
+}
+
+.card_bottom {
+  display: grid;
+  column-gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  padding: 0 12px 24px 12px;
+}
+
+.card_calcualtions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: end;
+}
+
+.card_buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card_button--orange {
+  width: 100%;
+  height: 40px;
+  background-color: var(--main-color);
+  border: none;
+  border-radius: 40px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 27%;
+  letter-spacing: 0;
+  text-align: center;
+  color: #fff;
+}
+
+.card_button--orange:hover {
+  transform: var(--hover-transform);
+  transition-duration: var(--hover-transition-duration);
+}
+
+.card_button--navy {
+  width: 100%;
+  height: 40px;
+  background-color: var(--secondary-color);
+  border: none;
+  border-radius: 40px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 27%;
+  letter-spacing: 0;
+  text-align: center;
+  color: #fff;
+}
+
+.card_button--navy:hover {
+  transform: var(--hover-transform);
+  transition-duration: var(--hover-transition-duration);
+}
+
+.card_button--white {
+  width: 100%;
+  height: 40px;
+  background-color: #fff;
+  border: 2px solid var(--main-color);
+  border-radius: 40px;
+
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 27%;
+  letter-spacing: 0;
+  text-align: center;
+  color: var(--main-color);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card_button--white:hover {
+  background-color: var(--main-color);
+  color: #fff;
+
+  transform: var(--hover-transform);
+  transition-duration: var(--hover-transition-duration);
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.total-content {
+  display: grid;
+  column-gap: 12px;
+  grid-template-columns: repeat(5, 1fr);
+
+  color: var(--secondary-color);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.total-text {
+  grid-column: 1/4;
+}
+.total-number {
+  justify-self: end;
+}
+
+.profit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profit-content {
+  display: flex;
+  justify-content: space-between;
+
+  color: var(--secondary-color);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.profit-content:last-child {
+  font-weight: 700;
+}
+
+.profit-text {
+  grid-column: 1/3;
+}
+
+.profit-number {
+  justify-self: end;
+}

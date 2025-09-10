@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { register } from "../../../lib/api";
+import { register } from "../../lib/api";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
